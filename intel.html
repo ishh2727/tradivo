@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Tradivo — Buy, sell, collect and trade.">
+  <title>Tradivo — Marketplace</title>
+
+  <link rel="stylesheet" href="styles.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
+<body>
+
+  <header class="navbar">
+    <a href="#" class="logo">
+      <span class="logo-mark">T</span>
+      Tradivo
+    </a>
+
+    <nav class="nav-links">
+      <a href="#marketplace">Marketplace</a>
+      <a href="#collections">Collections</a>
+      <a href="#how">How it works</a>
+    </nav>
+
+    <div class="nav-actions">
+      <button class="btn btn-outline" onclick="openAuth()">Sign in</button>
+      <button class="btn btn-primary" onclick="openListing()">Sell an item</button>
+    </div>
+  </header>
+
+
+  <main>
+
+    <!-- HERO -->
+
+    <section class="hero">
+
+      <div class="hero-content">
+
+        <div class="eyebrow">
+          THE MARKETPLACE BUILT AROUND REAL SALES
+        </div>
+
+        <h1>
+          Buy it.<br>
+          Sell it.<br>
+          <span>Know its value.</span>
+        </h1>
+
+        <p>
+          Tradivo brings listings, sales history and price trends
+          together so you can buy, sell and trade with confidence.
+        </p>
+
+        <div class="hero-buttons">
+          <button
+            class="btn btn-primary btn-large"
+            onclick="scrollToMarketplace()">
+            Explore marketplace
+          </button>
+
+          <button
+            class="btn btn-outline btn-large"
+            onclick="openListing()">
+            List something
+          </button>
+        </div>
+
+      </div>
+
+
+      <div class="market-preview">
+
+        <div class="preview-header">
+          <span>TRADIVO MARKET</span>
+          <span class="live-dot">● LIVE</span>
+        </div>
+
+        <div class="preview-item">
+
+          <div class="preview-image">
+            👟
+          </div>
+
+          <div class="preview-info">
+
+            <strong>Jordan 1 Chicago</strong>
+
+            <span>Recent Tradivo sales</span>
+
+            <div class="preview-price">
+              $302
+            </div>
+
+            <div class="price-change">
+              ▲ 4.8%
+            </div>
+
+          </div>
+
+        </div>
+
+        <div class="mini-chart">
+
+          <div style="height:35%"></div>
+          <div style="height:48%"></div>
+          <div style="height:42%"></div>
+          <div style="height:62%"></div>
+          <div style="height:55%"></div>
+          <div style="height:74%"></div>
+          <div style="height:68%"></div>
+          <div style="height:88%"></div>
+
+        </div>
+
+        <div class="preview-stats">
+
+          <div>
+            <span>Active listings</span>
+            <strong id="activeCount">0</strong>
+          </div>
+
+          <div>
+            <span>Completed sales</span>
+            <strong id="salesCount">0</strong>
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- MARKETPLACE -->
+
+    <section id="marketplace" class="section">
+
+      <div class="section-heading">
+
+        <div>
+          <div class="eyebrow">MARKETPLACE</div>
+
+          <h2>
+            Find your next item.
+          </h2>
+        </div>
+
+        <div class="search-box">
+
+          <input
+            id="searchInput"
+            type="search"
+            placeholder="Search Tradivo..."
+            oninput="searchListings()">
+
+          🔎
+
+        </div>
+
+      </div>
+
+
+      <div class="categories">
+
+        <button
+          class="category active"
+          onclick="filterCategory('all', this)">
+          All
+        </button>
+
+        <button
+          class="category"
+          onclick="filterCategory('Shoes', this)">
+          👟 Shoes
+        </button>
+
+        <button
+          class="category"
+          onclick="filterCategory('Trading Cards', this)">
+          🃏 Cards
+        </button>
+
+        <button
+          class="category"
+          onclick="filterCategory('Clothing', this)">
+          👕 Clothing
+        </button>
+
+        <button
+          class="category"
+          onclick="filterCategory('Comics', this)">
+          📕 Comics
+        </button>
+
+        <button
+          class="category"
+          onclick="filterCategory('Electronics', this)">
+          🎮 Electronics
+        </button>
+
+        <button
+          class="category"
+          onclick="filterCategory('Collectibles', this)">
+          ⭐ Collectibles
+        </button>
+
+      </div>
+
+
+      <div id="listingGrid" class="listing-grid">
+
+        <div class="loading">
+          Loading Tradivo marketplace...
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- PRICE INTELLIGENCE -->
+
+    <section class="price-section">
+
+      <div class="price-copy">
+
+        <div class="eyebrow">
+          PRICE INTELLIGENCE
+        </div>
+
+        <h2>
+          Stop guessing what to charge.
+        </h2>
+
+        <p>
+          Tradivo uses its own completed sales and active listings
+          to show you what buyers are actually paying on Tradivo.
+        </p>
+
+        <div class="price-features">
+
+          <div>
+            ✓ Recent sold prices
+          </div>
+
+          <div>
+            ✓ Current listings
+          </div>
+
+          <div>
+            ✓ Price history
+          </div>
+
+          <div>
+            ✓ Suggested listing range
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <div class="sales-card">
+
+        <div class="sales-title">
+          Recent Tradivo sales
+        </div>
+
+        <div id="recentSales">
+
+          <div class="empty">
+            Sales history will appear here as Tradivo grows.
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- COLLECTION -->
+
+    <section id="collections" class="section collection-section">
+
+      <div class="section-heading">
+
+        <div>
+
+          <div class="eyebrow">
+            YOUR COLLECTION
+          </div>
+
+          <h2>
+            Keep everything together.
+          </h2>
+
+        </div>
+
+        <button
+          class="btn btn-outline"
+          onclick="openAuth()">
+          Sign in
+        </button>
+
+      </div>
+
+
+      <div class="collection-grid">
+
+        <div class="collection-card">
+
+          <span>Collection value</span>
+
+          <strong>
+            $0
+          </strong>
+
+          <small>
+            Based on your Tradivo items
+          </small>
+
+        </div>
+
+        <div class="collection-card">
+
+          <span>Items</span>
+
+          <strong>
+            0
+          </strong>
+
+          <small>
+            Add items to your collection
+          </small>
+
+        </div>
+
+        <div class="collection-card">
+
+          <span>Watchlist</span>
+
+          <strong>
+            0
+          </strong>
+
+          <small>
+            Items you're watching
+          </small>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- HOW IT WORKS -->
+
+    <section id="how" class="how-section">
+
+      <div class="eyebrow">
+        HOW TRADIVO WORKS
+      </div>
+
+      <h2>
+        Simple marketplace.<br>
+        Smarter pricing.
+      </h2>
+
+
+      <div class="steps">
+
+        <div class="step">
+
+          <span>01</span>
+
+          <h3>
+            Find
+          </h3>
+
+          <p>
+            Search thousands of items listed by the Tradivo community.
+          </p>
+
+        </div>
+
+
+        <div class="step">
+
+          <span>02</span>
+
+          <h3>
+            Compare
+          </h3>
+
+          <p>
+            See current listings and previous Tradivo sales.
+          </p>
+
+        </div>
+
+
+        <div class="step">
+
+          <span>03</span>
+
+          <h3>
+            Trade
+          </h3>
+
+          <p>
+            Buy, sell, make offers or trade items with other users.
+          </p>
+
+        </div>
+
+
+        <div class="step">
+
+          <span>04</span>
+
+          <h3>
+            Build
+          </h3>
+
+          <p>
+            Grow your collection and build your marketplace history.
+          </p>
+
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+
+  <!-- AUTH MODAL -->
+
+  <div id="authModal" class="modal">
+
+    <div class="modal-box">
+
+      <button
+        class="modal-close"
+        onclick="closeAuth()">
+        ×
+      </button>
+
+      <div class="eyebrow">
+        TRADIVO ACCOUNT
+      </div>
+
+      <h2>
+        Sign in or create an account.
+      </h2>
+
+      <input
+        id="authEmail"
+        type="email"
+        placeholder="Email address">
+
+      <input
+        id="authPassword"
+        type="password"
+        placeholder="Password">
+
+      <button
+        class="btn btn-primary full"
+        onclick="signUp()">
+        Create account
+      </button>
+
+      <button
+        class="btn btn-outline full"
+        onclick="signIn()">
+        Sign in
+      </button>
+
+      <p id="authMessage"></p>
+
+    </div>
+
+  </div>
+
+
+  <!-- LISTING MODAL -->
+
+  <div id="listingModal" class="modal">
+
+    <div class="modal-box">
+
+      <button
+        class="modal-close"
+        onclick="closeListing()">
+        ×
+      </button>
+
+      <div class="eyebrow">
+        SELL ON TRADIVO
+      </div>
+
+      <h2>
+        List an item.
+      </h2>
+
+      <input
+        id="listingTitle"
+        placeholder="Item name">
+
+      <select id="listingCategory">
+
+        <option>
+          Shoes
+        </option>
+
+        <option>
+          Trading Cards
+        </option>
+
+        <option>
+          Clothing
+        </option>
+
+        <option>
+          Comics
+        </option>
+
+        <option>
+          Electronics
+        </option>
+
+        <option>
+          Collectibles
+        </option>
+
+        <option>
+          Other
+        </option>
+
+      </select>
+
+      <select id="listingCondition">
+
+        <option>
+          New
+        </option>
+
+        <option>
+          Like New
+        </option>
+
+        <option selected>
+          Used
+        </option>
+
+        <option>
+          Heavily Used
+        </option>
+
+      </select>
+
+      <input
+        id="listingPrice"
+        type="number"
+        step="0.01"
+        placeholder="Price">
+
+      <textarea
+        id="listingDescription"
+        placeholder="Describe your item"></textarea>
+
+      <button
+        class="btn btn-primary full"
+        onclick="createListing()">
+        Create listing
+      </button>
+
+      <p id="listingMessage"></p>
+
+    </div>
+
+  </div>
+
+
+  <footer>
+
+    <strong>
+      Tradivo
+    </strong>
+
+    <span>
+      Buy • Sell • Collect • Trade
+    </span>
+
+    <span>
+      © 2026 Tradivo
+    </span>
+
+  </footer>
+
+
+  <script src="app.js"></script>
+
+</body>
+
+</html>
