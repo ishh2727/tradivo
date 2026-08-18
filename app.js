@@ -401,6 +401,262 @@ async function createListing() {
       .value
       .trim();
 
+  const photoInput =
+    document.getElementById("listingPhotos");
+
+
+  if (!title || !price) {
+    message.textContent =
+      "Please enter an item name and price.";
+
+    return;
+  }
+
+
+  const {
+    data: { user }
+  } = await db.auth.getUser();
+
+
+  if (!user) {
+    message.textContent =
+      "Please sign in before creating a listing.";
+
+    return;
+  }
+
+
+  message.textContent =
+    "Creating your listing...";
+
+
+  // Find category
+  const {
+    data: categoryData,
+    error: categoryError
+  } = await db
+    .from("categories")
+    .select("id")
+    .eq("name", category)
+    .single();
+
+
+  if (categoryError) {
+    console.error(categoryError);
+
+    message.textContent =
+      "Could not find that category.";
+
+    return;
+  }
+
+
+  // Create item
+  const {
+    data: item,
+    error: itemError
+  } = await db
+    .from("items")
+    .insert({
+      category_id: categoryData.id,
+      name: title,
+      description: description,
+      created_by: user.id
+    })
+    .select()
+    .single();
+
+
+  if (itemError) {
+    console.error(itemError);
+
+    message.textContent =
+      itemError.message;
+
+    return;
+  }
+
+
+  // Create listing
+  const {
+    data: listing,
+    error: listingError
+  } = await db
+    .from("listings")
+    .insert({
+      item_id: item.id,
+      seller_id: user.id,
+      title: title,
+      description: description,
+      condition: condition,
+      price: price,
+      status: "active"
+    })
+    .select()
+    .single();
+
+
+  if (listingError) {
+    console.error(listingError);
+
+    message.textContent =
+      listingError.message;
+
+    return;
+  }
+
+
+  // Upload photos
+  const files =
+    photoInput?.files
+      ? Array.from(photoInput.files)
+      : [];
+
+
+  for (let i = 0; i < files.length; i++) {
+
+    const file = files[i];
+
+    if (!file.type.startsWith("image/")) {
+      continue;
+    }
+
+
+    const extension =
+      file.name.split(".").pop().toLowerCase();
+
+
+    const filePath =
+      `${user.id}/${listing.id}/${crypto.randomUUID()}.${extension}`;
+
+
+    message.textContent =
+      `Uploading photo ${i + 1} of ${files.length}...`;
+
+
+    const {
+      error: uploadError
+    } = await db.storage
+      .from("listing-images")
+      .upload(filePath, file, {
+        cacheControl: "3600",
+        upsert: false
+      });
+
+
+    if (uploadError) {
+      console.error(uploadError);
+
+      message.textContent =
+        "Listing created, but the photo could not be uploaded.";
+
+      return;
+    }
+
+
+    // Get public image URL
+    const {
+      data: publicUrlData
+    } = db.storage
+      .from("listing-images")
+      .getPublicUrl(filePath);
+
+
+    const imageUrl =
+      publicUrlData.publicUrl;
+
+
+    // Save image information
+    const {
+      error: imageDatabaseError
+    } = await db
+      .from("listing_images")
+      .insert({
+        listing_id: listing.id,
+        image_url: imageUrl,
+        sort_order: i
+      });
+
+
+    if (imageDatabaseError) {
+      console.error(imageDatabaseError);
+
+      message.textContent =
+        "Photo uploaded, but could not be attached to the listing.";
+
+      return;
+    }
+  }
+
+
+  // Add initial price to Tradivo price history
+  await db
+    .from("price_history")
+    .insert({
+      item_id: item.id,
+      price: price,
+      source: "tradivo"
+    });
+
+
+  message.textContent =
+    "Your listing is live on Tradivo!";
+
+
+  document.getElementById("listingTitle").value = "";
+
+  document.getElementById("listingPrice").value = "";
+
+  document.getElementById("listingDescription").value = "";
+
+  if (photoInput) {
+    photoInput.value = "";
+  }
+
+  const preview =
+    document.getElementById("photoPreview");
+
+  if (preview) {
+    preview.innerHTML = "";
+  }
+
+
+  await loadMarketplace();
+
+  await loadMarketStats();
+
+
+  setTimeout(() => {
+    closeListing();
+  }, 1000);
+}
+
+  const message =
+    document.getElementById("listingMessage");
+
+  const title =
+    document.getElementById("listingTitle")
+      .value
+      .trim();
+
+  const category =
+    document.getElementById("listingCategory")
+      .value;
+
+  const condition =
+    document.getElementById("listingCondition")
+      .value;
+
+  const price =
+    Number(
+      document.getElementById("listingPrice").value
+    );
+
+  const description =
+    document.getElementById("listingDescription")
+      .value
+      .trim();
+
 
   if (!title || !price) {
     message.textContent =
