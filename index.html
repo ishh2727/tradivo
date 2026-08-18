@@ -571,7 +571,16 @@
         type="number"
         step="0.01"
         placeholder="Price">
+<label class="photo-upload">
+  <span>📷 Add photos</span>
+  <input
+    id="listingPhotos"
+    type="file"
+    accept="image/*"
+    multiple>
+</label>
 
+<div id="photoPreview" class="photo-preview"></div>
       <textarea
         id="listingDescription"
         placeholder="Describe your item"></textarea>
