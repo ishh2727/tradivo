@@ -18,25 +18,6 @@ const db = window.supabase.createClient(
 
 let allListings = [];
 let selectedCategory = "all";
-const photoInput = document.getElementById("listingPhotos");
-
-if (photoInput) {
-  photoInput.addEventListener("change", () => {
-    const preview = document.getElementById("photoPreview");
-
-    preview.innerHTML = "";
-
-    Array.from(photoInput.files).forEach(file => {
-      if (!file.type.startsWith("image/")) return;
-
-      const image = document.createElement("img");
-
-      image.src = URL.createObjectURL(file);
-
-      preview.appendChild(image);
-    });
-  });
-}
 
 // ==========================================
 // START APP
