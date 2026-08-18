@@ -1,9 +1,4 @@
-// ==========================================
-// TRADIVO — APP.JS
-// ==========================================
-
-// Supabase connection
-const SUPABASE_URL = "https://emtgjwrfxsxainwmsgkr.supabase.co";
+const SUPABASE_URL = "https://emtgjwrfxsxainwmsgkr.supabase.co/rest/v1/";
 const SUPABASE_KEY = "sb_publishable_lEgj73XsD3_MG9DdDETZXg_Rjjjoy-2";
 
 const db = window.supabase.createClient(
@@ -12,63 +7,38 @@ const db = window.supabase.createClient(
 );
 
 
-// ==========================================
-// APP STATE
-// ==========================================
+// =========================
+// AUTH
+// =========================
 
-let allListings = [];
-let selectedCategory = "all";
-
-// ==========================================
-// START APP
-// ==========================================
-
-document.addEventListener("DOMContentLoaded", async () => {
-  await loadMarketplace();
-  await loadMarketStats();
-  await loadRecentSales();
-
-  const {
-    data: { session }
-  } = await db.auth.getSession();
-
-  updateAuthButton(session);
-
-  db.auth.onAuthStateChange((_event, session) => {
-    updateAuthButton(session);
-  });
-});
-
-
-// ==========================================
-// AUTHENTICATION
-// ==========================================
-
-function openAuth() {
-  document.getElementById("authModal").classList.add("open");
-}
-
-function closeAuth() {
-  document.getElementById("authModal").classList.remove("open");
-}
-
-async function signUp() {
-  const email = document.getElementById("authEmail").value.trim();
-  const password = document.getElementById("authPassword").value;
+async function signIn() {
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
 
   const message = document.getElementById("authMessage");
 
-  if (!email || !password) {
-    message.textContent = "Enter your email and password.";
+  const { error } = await db.auth.signInWithPassword({
+    email,
+    password
+  });
+
+  if (error) {
+    message.textContent = error.message;
     return;
   }
 
-  if (password.length < 6) {
-    message.textContent = "Password must be at least 6 characters.";
-    return;
-  }
+  message.textContent = "Signed in successfully.";
 
-  message.textContent = "Creating your account...";
+  await updateUserUI();
+  closeAuth();
+}
+
+
+async function createAccount() {
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+
+  const message = document.getElementById("authMessage");
 
   const { error } = await db.auth.signUp({
     email,
@@ -81,278 +51,147 @@ async function signUp() {
   }
 
   message.textContent =
-    "Account created. Check your email if confirmation is required.";
+    "Account created! Check your email to verify your account.";
 }
 
-async function signIn() {
-  const email = document.getElementById("authEmail").value.trim();
-  const password = document.getElementById("authPassword").value;
-
-  const message = document.getElementById("authMessage");
-
-  if (!email || !password) {
-    message.textContent = "Enter your email and password.";
-    return;
-  }
-
-  message.textContent = "Signing in...";
-
-  const { error } = await db.auth.signInWithPassword({
-    email,
-    password
-  });
-
-  if (error) {
-    message.textContent = error.message;
-    return;
-  }
-
-  message.textContent = "You're signed in.";
-
-  setTimeout(() => {
-    closeAuth();
-  }, 700);
-}
 
 async function signOut() {
   await db.auth.signOut();
-  location.reload();
+  await updateUserUI();
 }
 
-function updateAuthButton(session) {
-  const buttons = document.querySelectorAll(".nav-actions .btn");
 
-  if (!buttons.length) return;
+async function updateUserUI() {
+  const {
+    data: { user }
+  } = await db.auth.getUser();
 
-  const signInButton = buttons[0];
+  const accountButton =
+    document.getElementById("accountButton");
 
-  if (session) {
-    signInButton.textContent = "Sign out";
-    signInButton.onclick = signOut;
+  if (!accountButton) return;
+
+  if (user) {
+    accountButton.textContent = "Account";
   } else {
-    signInButton.textContent = "Sign in";
-    signInButton.onclick = openAuth;
+    accountButton.textContent = "Sign In";
   }
 }
 
 
-// ==========================================
+// =========================
+// AUTH MODAL
+// =========================
+
+function openAuth() {
+  const modal = document.getElementById("authModal");
+
+  if (modal) {
+    modal.classList.add("active");
+  }
+}
+
+
+function closeAuth() {
+  const modal = document.getElementById("authModal");
+
+  if (modal) {
+    modal.classList.remove("active");
+  }
+}
+
+
+// =========================
+// LISTING MODAL
+// =========================
+
+function openListing() {
+  const modal =
+    document.getElementById("listingModal");
+
+  if (modal) {
+    modal.classList.add("active");
+  }
+}
+
+
+function closeListing() {
+  const modal =
+    document.getElementById("listingModal");
+
+  if (modal) {
+    modal.classList.remove("active");
+  }
+}
+
+
+// =========================
 // MARKETPLACE
-// ==========================================
+// =========================
 
 async function loadMarketplace() {
-  const grid = document.getElementById("listingGrid");
+  const container =
+    document.getElementById("marketplace");
 
-  grid.innerHTML = `
-    <div class="loading">
-      Loading Tradivo marketplace...
-    </div>
-  `;
+  if (!container) return;
 
-  const { data, error } = await db
+  const {
+    data,
+    error
+  } = await db
     .from("listings")
-    .select(`
-      id,
-      title,
-      description,
-      condition,
-      price,
-      status,
-      created_at,
-      seller_id,
-      item_id,
-      items (
-        name,
-        brand,
-        model,
-        categories (
-          name
-        )
-      ),
-      profiles (
-        username,
-        display_name
-      ),
-      listing_images (
-        image_url,
-        sort_order
-      )
-    `)
+    .select("*")
     .eq("status", "active")
-    .order("created_at", { ascending: false });
+    .order("created_at", {
+      ascending: false
+    });
 
   if (error) {
     console.error(error);
-
-    grid.innerHTML = `
-      <div class="empty">
-        Unable to load listings right now.
-      </div>
-    `;
-
     return;
   }
 
-  allListings = data || [];
+  container.innerHTML = "";
 
-  renderListings(allListings);
-}
-
-function renderListings(listings) {
-  const grid = document.getElementById("listingGrid");
-
-  if (!listings.length) {
-    grid.innerHTML = `
-      <div class="empty">
-        No listings found yet.
-        <br><br>
-        Be one of the first people to list something on Tradivo.
-      </div>
-    `;
-
+  if (!data || data.length === 0) {
+    container.innerHTML =
+      "<p>No listings yet.</p>";
     return;
   }
 
-  grid.innerHTML = listings.map(listing => {
+  data.forEach(listing => {
 
-    const category =
-      listing.items?.categories?.name || "Other";
+    const card =
+      document.createElement("div");
 
-    const seller =
-      listing.profiles?.display_name ||
-      listing.profiles?.username ||
-      "Tradivo seller";
+    card.className = "listing-card";
 
-    const image =
-      listing.listing_images?.sort(
-        (a, b) => a.sort_order - b.sort_order
-      )[0]?.image_url;
+    card.innerHTML = `
+      <div class="listing-image">
+        <span>📦</span>
+      </div>
 
-    const emoji = getCategoryEmoji(category);
+      <div class="listing-info">
+        <h3>${escapeHTML(listing.title || "Item")}</h3>
 
-    return `
-      <article class="listing-card">
+        <p class="listing-condition">
+          ${escapeHTML(listing.condition || "")}
+        </p>
 
-        <div class="listing-image"
-             ${image ? `style="background-image:url('${escapeAttribute(image)}'); background-size:cover; background-position:center;"` : ""}>
-          ${image ? "" : emoji}
-        </div>
-
-        <div class="listing-content">
-
-          <div class="listing-category">
-            ${escapeHtml(category)}
-          </div>
-
-          <h3>
-            ${escapeHtml(listing.title)}
-          </h3>
-
-          <div class="listing-condition">
-            ${escapeHtml(listing.condition)}
-          </div>
-
-          <div class="listing-bottom">
-
-            <div>
-              <div class="listing-price">
-                $${Number(listing.price).toFixed(2)}
-              </div>
-
-              <div class="listing-seller">
-                @${escapeHtml(seller)}
-              </div>
-            </div>
-
-            <button
-              class="btn btn-outline"
-              onclick="viewListing('${listing.id}')">
-              View
-            </button>
-
-          </div>
-
-        </div>
-
-      </article>
+        <strong>
+          $${Number(listing.price || 0).toFixed(2)}
+        </strong>
+      </div>
     `;
-  }).join("");
+
+    container.appendChild(card);
+  });
 }
 
 
-// ==========================================
-// SEARCH
-// ==========================================
-
-function searchListings() {
-  const query =
-    document.getElementById("searchInput")
-      .value
-      .trim()
-      .toLowerCase();
-
-  let results = allListings;
-
-  if (selectedCategory !== "all") {
-    results = results.filter(listing => {
-      return (
-        listing.items?.categories?.name ===
-        selectedCategory
-      );
-    });
-  }
-
-  if (query) {
-    results = results.filter(listing => {
-
-      const title =
-        listing.title?.toLowerCase() || "";
-
-      const description =
-        listing.description?.toLowerCase() || "";
-
-      const item =
-        listing.items?.name?.toLowerCase() || "";
-
-      const brand =
-        listing.items?.brand?.toLowerCase() || "";
-
-      return (
-        title.includes(query) ||
-        description.includes(query) ||
-        item.includes(query) ||
-        brand.includes(query)
-      );
-    });
-  }
-
-  renderListings(results);
-}
-
-function filterCategory(category, button) {
-  selectedCategory = category;
-
-  document
-    .querySelectorAll(".category")
-    .forEach(item => item.classList.remove("active"));
-
-  button.classList.add("active");
-
-  searchListings();
-}
-
-
-// ==========================================
+// =========================
 // CREATE LISTING
-// ==========================================
-
-function openListing() {
-  document.getElementById("listingModal").classList.add("open");
-}
-
-function closeListing() {
-  document.getElementById("listingModal").classList.remove("open");
-}
+// =========================
 
 async function createListing() {
 
@@ -361,34 +200,32 @@ async function createListing() {
 
   const title =
     document.getElementById("listingTitle")
-      .value
-      .trim();
+      ?.value.trim();
 
   const category =
     document.getElementById("listingCategory")
-      .value;
+      ?.value;
 
   const condition =
     document.getElementById("listingCondition")
-      .value;
+      ?.value;
 
   const price =
     Number(
-      document.getElementById("listingPrice").value
+      document.getElementById("listingPrice")
+        ?.value
     );
 
   const description =
     document.getElementById("listingDescription")
-      .value
-      .trim();
-
-  const photoInput =
-    document.getElementById("listingPhotos");
+      ?.value.trim();
 
 
   if (!title || !price) {
-    message.textContent =
-      "Please enter an item name and price.";
+    if (message) {
+      message.textContent =
+        "Please enter an item name and price.";
+    }
 
     return;
   }
@@ -400,35 +237,41 @@ async function createListing() {
 
 
   if (!user) {
-    message.textContent =
-      "Please sign in before creating a listing.";
+    if (message) {
+      message.textContent =
+        "Please sign in before creating a listing.";
+    }
 
     return;
   }
 
 
-  message.textContent =
-    "Creating your listing...";
+  if (message) {
+    message.textContent =
+      "Creating your listing...";
+  }
 
 
   // Find category
-  const {
-    data: categoryData,
-    error: categoryError
-  } = await db
-    .from("categories")
-    .select("id")
-    .eq("name", category)
-    .single();
+  let categoryId = null;
+
+  if (category) {
+
+    const {
+      data: categoryData,
+      error: categoryError
+    } = await db
+      .from("categories")
+      .select("id")
+      .eq("name", category)
+      .maybeSingle();
 
 
-  if (categoryError) {
-    console.error(categoryError);
-
-    message.textContent =
-      "Could not find that category.";
-
-    return;
+    if (categoryError) {
+      console.error(categoryError);
+    } else if (categoryData) {
+      categoryId = categoryData.id;
+    }
   }
 
 
@@ -439,7 +282,7 @@ async function createListing() {
   } = await db
     .from("items")
     .insert({
-      category_id: categoryData.id,
+      category_id: categoryId,
       name: title,
       description: description,
       created_by: user.id
@@ -451,8 +294,10 @@ async function createListing() {
   if (itemError) {
     console.error(itemError);
 
-    message.textContent =
-      itemError.message;
+    if (message) {
+      message.textContent =
+        itemError.message;
+    }
 
     return;
   }
@@ -480,98 +325,19 @@ async function createListing() {
   if (listingError) {
     console.error(listingError);
 
-    message.textContent =
-      listingError.message;
+    if (message) {
+      message.textContent =
+        listingError.message;
+    }
 
     return;
   }
 
 
-  // Upload photos
-  const files =
-    photoInput?.files
-      ? Array.from(photoInput.files)
-      : [];
-
-
-  for (let i = 0; i < files.length; i++) {
-
-    const file = files[i];
-
-    if (!file.type.startsWith("image/")) {
-      continue;
-    }
-
-
-    const extension =
-      file.name.split(".").pop().toLowerCase();
-
-
-    const filePath =
-      `${user.id}/${listing.id}/${crypto.randomUUID()}.${extension}`;
-
-
-    message.textContent =
-      `Uploading photo ${i + 1} of ${files.length}...`;
-
-
-    const {
-      error: uploadError
-    } = await db.storage
-      .from("listing-images")
-      .upload(filePath, file, {
-        cacheControl: "3600",
-        upsert: false
-      });
-
-
-    if (uploadError) {
-      console.error(uploadError);
-
-      message.textContent =
-        "Listing created, but the photo could not be uploaded.";
-
-      return;
-    }
-
-
-    // Get public image URL
-    const {
-      data: publicUrlData
-    } = db.storage
-      .from("listing-images")
-      .getPublicUrl(filePath);
-
-
-    const imageUrl =
-      publicUrlData.publicUrl;
-
-
-    // Save image information
-    const {
-      error: imageDatabaseError
-    } = await db
-      .from("listing_images")
-      .insert({
-        listing_id: listing.id,
-        image_url: imageUrl,
-        sort_order: i
-      });
-
-
-    if (imageDatabaseError) {
-      console.error(imageDatabaseError);
-
-      message.textContent =
-        "Photo uploaded, but could not be attached to the listing.";
-
-      return;
-    }
-  }
-
-
-  // Add initial price to Tradivo price history
-  await db
+  // Save initial price history
+  const {
+    error: priceError
+  } = await db
     .from("price_history")
     .insert({
       item_id: item.id,
@@ -580,187 +346,45 @@ async function createListing() {
     });
 
 
-  message.textContent =
-    "Your listing is live on Tradivo!";
-
-
-  document.getElementById("listingTitle").value = "";
-
-  document.getElementById("listingPrice").value = "";
-
-  document.getElementById("listingDescription").value = "";
-
-  if (photoInput) {
-    photoInput.value = "";
-  }
-
-  const preview =
-    document.getElementById("photoPreview");
-
-  if (preview) {
-    preview.innerHTML = "";
-  }
-
-
-  await loadMarketplace();
-
-  await loadMarketStats();
-
-
-  setTimeout(() => {
-    closeListing();
-  }, 1000);
-}
-
-  const message =
-    document.getElementById("listingMessage");
-
-  const title =
-    document.getElementById("listingTitle")
-      .value
-      .trim();
-
-  const category =
-    document.getElementById("listingCategory")
-      .value;
-
-  const condition =
-    document.getElementById("listingCondition")
-      .value;
-
-  const price =
-    Number(
-      document.getElementById("listingPrice").value
+  if (priceError) {
+    console.warn(
+      "Price history could not be saved:",
+      priceError
     );
-
-  const description =
-    document.getElementById("listingDescription")
-      .value
-      .trim();
-
-
-  if (!title || !price) {
-    message.textContent =
-      "Please enter an item name and price.";
-
-    return;
   }
 
 
-  const {
-    data: { user }
-  } = await db.auth.getUser();
-
-
-  if (!user) {
+  if (message) {
     message.textContent =
-      "Please sign in before creating a listing.";
-
-    return;
+      "Your listing is live on Tradivo!";
   }
 
 
-  message.textContent =
-    "Creating your listing...";
+  // Clear form
+  const titleInput =
+    document.getElementById("listingTitle");
+
+  const priceInput =
+    document.getElementById("listingPrice");
+
+  const descriptionInput =
+    document.getElementById("listingDescription");
 
 
-  // Find category
-  const {
-    data: categoryData,
-    error: categoryError
-  } = await db
-    .from("categories")
-    .select("id")
-    .eq("name", category)
-    .single();
-
-
-  if (categoryError) {
-    console.error(categoryError);
-
-    message.textContent =
-      "Could not find that category.";
-
-    return;
+  if (titleInput) {
+    titleInput.value = "";
   }
 
-
-  // Create item
-  const {
-    data: item,
-    error: itemError
-  } = await db
-    .from("items")
-    .insert({
-      category_id: categoryData.id,
-      name: title,
-      description: description,
-      created_by: user.id
-    })
-    .select()
-    .single();
-
-
-  if (itemError) {
-    console.error(itemError);
-
-    message.textContent =
-      itemError.message;
-
-    return;
+  if (priceInput) {
+    priceInput.value = "";
   }
 
-
-  // Create listing
-  const {
-    data: listing,
-    error: listingError
-  } = await db
-    .from("listings")
-    .insert({
-      item_id: item.id,
-      seller_id: user.id,
-      title: title,
-      description: description,
-      condition: condition,
-      price: price,
-      status: "active"
-    })
-    .select()
-    .single();
-
-
-  if (listingError) {
-    console.error(listingError);
-
-    message.textContent =
-      listingError.message;
-
-    return;
+  if (descriptionInput) {
+    descriptionInput.value = "";
   }
-
-
-  // Add initial price to Tradivo price history
-  await db
-    .from("price_history")
-    .insert({
-      item_id: item.id,
-      price: price,
-      source: "tradivia"
-    });
-
-
-  message.textContent =
-    "Your listing is live on Tradivo!";
-
-
-  document.getElementById("listingTitle").value = "";
-  document.getElementById("listingPrice").value = "";
-  document.getElementById("listingDescription").value = "";
 
 
   await loadMarketplace();
-  await loadMarketStats();
 
 
   setTimeout(() => {
@@ -769,184 +393,13 @@ async function createListing() {
 }
 
 
-// ==========================================
-// MARKET STATISTICS
-// ==========================================
-
-async function loadMarketStats() {
-
-  const { count: activeCount } =
-    await db
-      .from("listings")
-      .select("*", {
-        count: "exact",
-        head: true
-      })
-      .eq("status", "active");
-
-
-  const { count: salesCount } =
-    await db
-      .from("sales")
-      .select("*", {
-        count: "exact",
-        head: true
-      });
-
-
-  document.getElementById("activeCount")
-    .textContent = activeCount || 0;
-
-  document.getElementById("salesCount")
-    .textContent = salesCount || 0;
-}
-
-
-// ==========================================
-// SALES HISTORY
-// ==========================================
-
-async function loadRecentSales() {
-
-  const container =
-    document.getElementById("recentSales");
-
-
-  const { data, error } =
-    await db
-      .from("sales")
-      .select(`
-        sold_price,
-        sold_at,
-        items (
-          name
-        )
-      `)
-      .order("sold_at", {
-        ascending: false
-      })
-      .limit(6);
-
-
-  if (error) {
-    console.error(error);
-
-    container.innerHTML = `
-      <div class="empty">
-        Unable to load sales history.
-      </div>
-    `;
-
-    return;
-  }
-
-
-  if (!data?.length) {
-
-    container.innerHTML = `
-      <div class="empty">
-        Tradivo's sales history will grow as users complete sales.
-      </div>
-    `;
-
-    return;
-  }
-
-
-  container.innerHTML =
-    data.map(sale => {
-
-      return `
-        <div class="sale-row">
-
-          <div>
-            <strong>
-              ${escapeHtml(
-                sale.items?.name ||
-                "Tradivo item"
-              )}
-            </strong>
-
-            <small>
-              ${formatDate(sale.sold_at)}
-            </small>
-          </div>
-
-          <div class="sale-price">
-            $${Number(sale.sold_price).toFixed(2)}
-          </div>
-
-        </div>
-      `;
-
-    }).join("");
-}
-
-
-// ==========================================
-// VIEW LISTING
-// ==========================================
-
-function viewListing(id) {
-
-  const listing =
-    allListings.find(item => item.id === id);
-
-  if (!listing) return;
-
-
-  const seller =
-    listing.profiles?.display_name ||
-    listing.profiles?.username ||
-    "Tradivo seller";
-
-
-  alert(
-    `${listing.title}\n\n` +
-    `Price: $${Number(listing.price).toFixed(2)}\n` +
-    `Condition: ${listing.condition}\n` +
-    `Seller: ${seller}\n\n` +
-    `${listing.description || "No description provided."}`
-  );
-}
-
-
-// ==========================================
+// =========================
 // HELPERS
-// ==========================================
+// =========================
 
-function getCategoryEmoji(category) {
+function escapeHTML(value) {
 
-  const emojis = {
-    "Shoes": "👟",
-    "Trading Cards": "🃏",
-    "Clothing": "👕",
-    "Comics": "📕",
-    "Electronics": "🎮",
-    "Collectibles": "⭐",
-    "Other": "📦"
-  };
-
-  return emojis[category] || "📦";
-}
-
-
-function formatDate(date) {
-
-  return new Date(date).toLocaleDateString(
-    undefined,
-    {
-      month: "short",
-      day: "numeric",
-      year: "numeric"
-    }
-  );
-}
-
-
-function escapeHtml(value) {
-
-  return String(value ?? "")
+  return String(value)
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
@@ -955,31 +408,16 @@ function escapeHtml(value) {
 }
 
 
-function escapeAttribute(value) {
-  return escapeHtml(value);
-}
+// =========================
+// STARTUP
+// =========================
 
+document.addEventListener(
+  "DOMContentLoaded",
+  async () => {
 
-function scrollToMarketplace() {
+    await updateUserUI();
 
-  document
-    .getElementById("marketplace")
-    .scrollIntoView({
-      behavior: "smooth"
-    });
-}
-
-
-// ==========================================
-// CLOSE MODALS WHEN CLICKING OUTSIDE
-// ==========================================
-
-document.addEventListener("click", event => {
-
-  if (
-    event.target.classList.contains("modal")
-  ) {
-    event.target.classList.remove("open");
+    await loadMarketplace();
   }
-
-});
+);
